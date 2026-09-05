@@ -59,7 +59,7 @@ class MI(BaseHTTPRequestHandler):
                 self.end_headers()
                 try:
                     while True:
-                        chunk = mergel.stremchunk(1024*4)
+                        chunk = mergel.stremchunk(1024*16)
                         if not chunk:
                             break
                         self.wfile.write(chunk)
@@ -87,14 +87,45 @@ class MI(BaseHTTPRequestHandler):
                 track = client.get_track(stuffs[0].split("spotify:track:")[1]).to_dict()
             
             pathys = stuffs[1:(len(stuffs)-1)]
-            for i in range(len(pathys)):
-                track = track[pathys[i]]
+            try:
+                for i in range(len(pathys)):
+                    if isinstance(track, list):
+                        track = track[int(pathys[i])]
+                    else:
+                        track = track[pathys[i]]
+            except Exception as e:
+                print(e)
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             
             self.wfile.write(str(track).encode())
+            self.wfile.flush()
+            
+        elif (self.path.startswith("/search/")):
+            stuffs = self.path.split("/search/")[1].split("?")[1].split("&")
+            linkvars = {}
+            cool = []
+            
+            for i in range(len(stuffs)):
+                vardat = stuffs[i].split("=")
+                linkvars[vardat[0]] = vardat[1]
+                
+            if "l" in linkvars: limitl = linkvars[l]
+            else: limitl = 5
+            
+            with SpotifyClient() as client:
+                results = client.search(linkvars["q"], types=("track",), limit=limitl)\
+            
+            for track in results.tracks:
+                cool.append(track.to_dict())
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(str(cool).encode())
             self.wfile.flush()
         else:
             self.send_error(404)
@@ -109,7 +140,6 @@ try:
     httpd.serve_forever()
 except Exception as e:
     print(e)
-
 
 
 
